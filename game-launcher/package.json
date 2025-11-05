@@ -1,0 +1,89 @@
+{
+  "name": "game-launcher",
+  "version": "1.0.0",
+  "description": "Electron game launcher for gfiles",
+  "main": "public/electron.js",
+  "scripts": {
+    "start": "ELECTRON_IS_DEV=0 electron .",
+    "start:clean": "CLEAR_CACHE=1 ELECTRON_IS_DEV=0 electron .",
+    "start:dev": "electron .",
+    "dev": "concurrently \"npm run react-dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "react-dev": "react-scripts start",
+    "build": "react-scripts build",
+    "prepare:assets": "node scripts/prepare-assets.js",
+    "pack": "npm run build && npm run prepare:assets && electron-builder --dir",
+    "dist": "npm run build && npm run prepare:assets && electron-builder",
+    "pack:mac": "npm run build && npm run prepare:assets && electron-builder --mac --dir",
+    "dist:mac": "npm run build && npm run prepare:assets && electron-builder --mac",
+    "cleanup:icons": "rm -rf public/icons build/icons",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "keywords": [
+    "electron",
+    "games",
+    "launcher"
+  ],
+  "author": "Polyca Games",
+  "license": "MIT",
+  "homepage": "./",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "electron-is-dev": "^2.0.0",
+    "express": "^4.18.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "5.0.1"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "electron-builder": "^24.6.4",
+    "fs-extra": "^11.2.0",
+    "electron": "^27.0.0",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.gfiles.launcher",
+    "productName": "GFiles Game Launcher",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "build/**/*",
+      "public/electron.js",
+      "src/server.js",
+      "src/gameScanner.js",
+      "config/**/*",
+      "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "packaged-assets",
+        "to": "packaged-assets",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.games"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#111827"/>
+      <stop offset="100%" stop-color="#1F2937"/>
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="224" height="224" rx="48" fill="url(#bg)"/>
+  <g fill="none" stroke="#fff" stroke-linecap="round" stroke-width="14">
+    <path d="M96 152c-20 0-32-12-32-32s12-32 32-32h64c20 0 32 12 32 32s-12 32-32 32" stroke="#fff"/>    
+  </g>
+  <circle cx="156" cy="120" r="14" fill="#EF4444"/>
+  <circle cx="180" cy="144" r="14" fill="#F59E0B"/>
+  <rect x="104" y="112" width="28" height="10" rx="5" fill="#ffffff" opacity="0.85"/>
+  <rect x="115" y="101" width="10" height="28" rx="5" fill="#ffffff" opacity="0.85"/>
+  <g stroke="#F43F5E" stroke-width="10" stroke-linecap="round">
+    <path d="M70 70l116 116"/>
+  </g>
+  <title>GFiles Launcher Icon</title>
+</svg>

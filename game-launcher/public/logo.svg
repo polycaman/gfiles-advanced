@@ -1,0 +1,37 @@
+<svg width="220" height="220" viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- background badge -->
+  <rect x="15" y="15" width="190" height="190" rx="42" fill="#1F2937"/>
+  
+  <!-- inner glow circle -->
+  <circle cx="110" cy="110" r="70" fill="url(#grad1)" />
+
+  <!-- gamepad body -->
+  <path d="M70 122C70 104 83 90 101 90H119C137 90 150 104 150 122C150 136 141 147 129 147C118 147 112 141 110 139C108 141 102 147 91 147C79 147 70 136 70 122Z" fill="white"/>
+
+  <!-- D-pad -->
+  <rect x="81" y="108" width="20" height="6" rx="3" fill="#1F2937"/>
+  <rect x="88" y="101" width="6" height="20" rx="3" fill="#1F2937"/>
+
+  <!-- buttons -->
+  <circle cx="131" cy="110" r="5.5" fill="#EF4444"/>
+  <circle cx="142" cy="121" r="5.5" fill="#F97316"/>
+
+  <!-- OFFLINE icon (crossed signal) -->
+  <g transform="translate(132 60)">
+    <!-- wifi arcs -->
+    <path d="M6 16C9 13 13 13 16 16" stroke="white" stroke-width="1.8" stroke-linecap="round" opacity="0.85"/>
+    <path d="M3 9C8 -1 18 -1 23 9" stroke="white" stroke-width="1.8" stroke-linecap="round" opacity="0.6"/>
+    <!-- dot -->
+    <circle cx="11" cy="21" r="2" fill="white" />
+    <!-- slash -->
+    <line x1="2" y1="3" x2="23" y2="24" stroke="#F43F5E" stroke-width="3" stroke-linecap="round"/>
+  </g>
+
+  <!-- gradients -->
+  <defs>
+    <linearGradient id="grad1" x1="50" y1="40" x2="160" y2="170" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#111827" stop-opacity="0.1"/>
+      <stop offset="1" stop-color="#111827" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+</svg>

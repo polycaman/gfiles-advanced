@@ -15,30 +15,30 @@ let serverPort;
 // Promote app icon to module scope so game windows can reuse it.
 let appIconGlobal = null;
 
-function createWindow() {
+async function createWindow() {
   // Determine if we should treat this as production even if electron-is-dev reports dev.
   const forceProd = process.env.ELECTRON_IS_DEV === "0";
   const runningDev = isDev && !forceProd;
 
-  // Load single SVG icon (icon.svg) instead of generated raster set.
+  // Load single SVG icon (logo.svg) instead of generated raster set.
   let appIcon;
   try {
     const fs = require("fs");
     const svgPath = app.isPackaged
-      ? path.join(process.resourcesPath, "public", "icon.svg")
-      : path.join(__dirname, "icon.svg");
+      ? path.join(process.resourcesPath, "public", "logo.svg")
+      : path.join(__dirname, "logo.svg");
     if (fs.existsSync(svgPath)) {
       appIcon = nativeImage.createFromPath(svgPath);
       if (appIcon.isEmpty()) {
-        console.warn("[ICON] icon.svg loaded but empty.");
+        console.warn("[ICON] logo.svg loaded but empty.");
       } else if (process.env.ICON_DEBUG === "1") {
-        console.log("[ICON] Loaded SVG icon at", svgPath);
+        console.log("[ICON] Loaded SVG logo at", svgPath);
       }
     } else {
-      console.warn("[ICON] icon.svg not found at", svgPath);
+      console.warn("[ICON] logo.svg not found at", svgPath);
     }
   } catch (e) {
-    console.warn("[ICON] Failed to load icon.svg:", e.message);
+    console.warn("[ICON] Failed to load logo.svg:", e.message);
   }
 
   // Cache globally
@@ -63,7 +63,7 @@ function createWindow() {
     },
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
     show: false,
-  icon: appIconGlobal || path.join(__dirname, "icon.svg"),
+    icon: appIconGlobal || path.join(__dirname, "logo.svg"),
   });
 
   // Optional cache clearing before first load
@@ -88,22 +88,92 @@ function createWindow() {
       .catch((err) => console.warn("Failed to clear cache:", err));
   }
 
-  let startUrl;
+  // Establish initial load target.
+  const fs = require("fs");
+  const buildIndexPath = path.join(__dirname, "../build/index.html");
+
   if (runningDev) {
-    startUrl = "http://localhost:3000";
+    // Dev: use CRA dev server; electron.js is started after wait-on in npm script.
+    try {
+      await mainWindow.loadURL("http://localhost:3000");
+    } catch (err) {
+      console.warn("[LOAD] Dev server load failed", err.message);
+      mainWindow.loadURL(
+        "data:text/html,<h1>Dev server unreachable</h1><p>Çalıştır: <code>npm run start:dev</code></p>"
+      );
+    }
   } else {
-    startUrl = `file://${path.join(__dirname, "../build/index.html")}`;
+    // Production style: prefer loadFile for local build to avoid 'Not allowed to load local resource'.
+    try {
+      if (fs.existsSync(buildIndexPath)) {
+        await mainWindow.loadFile(buildIndexPath);
+        console.log("[LOAD] Loaded build via loadFile:", buildIndexPath);
+      } else {
+        console.warn("[LOAD] build/index.html bulunamadı:", buildIndexPath);
+        mainWindow.loadURL(
+          "data:text/html,<h1>Build eksik</h1><p>'npm run build' çalıştırıp sonra 'npm start' deneyin.</p>"
+        );
+      }
+    } catch (err) {
+      console.warn("[LOAD] build yüklenemedi", err.message);
+      mainWindow.loadURL(
+        "data:text/html,<h1>Yükleme hatası</h1><p>Yerel kaynağa erişilemedi. 'npm run build' sonrası tekrar başlatın.</p>"
+      );
+    }
   }
 
-  // Try to load; if dev URL fails, fallback to build.
-  mainWindow.loadURL(startUrl).catch((err) => {
-    console.warn(
-      "Primary start URL failed, falling back to build index.html",
-      err
-    );
-    const fallback = `file://${path.join(__dirname, "../build/index.html")}`;
-    mainWindow.loadURL(fallback);
+  // Diagnostics for blank screen troubleshooting
+  mainWindow.webContents.on("did-finish-load", () => {
+    console.log("[WINDOW] did-finish-load", mainWindow.webContents.getURL());
+    // Inject a quick JS check for React root.
+    mainWindow.webContents
+      .executeJavaScript(
+        "(function(){const el=document.getElementById('root');return el && el.childElementCount;})()"
+      )
+      .then((count) => {
+        if (!count) {
+          console.warn(
+            "[DIAG] #root has no children after load; React may not have mounted yet."
+          );
+        }
+      })
+      .catch(() => {});
   });
+  mainWindow.webContents.on(
+    "did-fail-load",
+    (e, ec, desc, url, isMainFrame) => {
+      console.warn(
+        "[WINDOW] did-fail-load",
+        ec,
+        desc,
+        url,
+        "mainFrame=",
+        isMainFrame
+      );
+    }
+  );
+  // Timeout fallback if nothing rendered in dev
+  if (runningDev) {
+    setTimeout(() => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents
+          .executeJavaScript(
+            "document.getElementById('root') && document.getElementById('root').childElementCount"
+          )
+          .then((count) => {
+            if (!count) {
+              console.warn(
+                "[FALLBACK] React dev server content not mounted; showing diagnostic page."
+              );
+              mainWindow.loadURL(
+                "data:text/html,<h1>React dev server blank</h1><p>Port 3000 may not have started yet. Try re-running: npm run start:dev</p>"
+              );
+            }
+          })
+          .catch(() => {});
+      }
+    }, 5000);
+  }
 
   mainWindow.once("ready-to-show", () => {
     mainWindow.show();
@@ -143,7 +213,7 @@ async function createGameWindow(gameUrl, gameId, gameType) {
     },
     title: "Game Player",
     show: false,
-  icon: appIconGlobal || path.join(__dirname, "icon.svg"),
+    icon: appIconGlobal || path.join(__dirname, "logo.svg"),
   });
 
   gameWindow.loadURL(gameUrl);
@@ -171,11 +241,9 @@ async function createGameWindow(gameUrl, gameId, gameType) {
 
 app.whenReady().then(async () => {
   try {
-    // Start the HTTP server
     serverPort = await startServer();
     console.log(`Game server started on port ${serverPort}`);
-
-    createWindow();
+    await createWindow();
   } catch (error) {
     console.error("Failed to start server:", error);
     app.quit();
@@ -217,7 +285,7 @@ app.on("window-all-closed", () => {
 
 app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
+    createWindow(); // fire-and-forget
   }
 });
 

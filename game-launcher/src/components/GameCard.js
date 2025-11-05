@@ -18,7 +18,11 @@ const GameCard = ({ game, onLaunch, serverPort }) => {
     if (!game.thumbnail || imageError || !serverPort) {
       return null;
     }
-
+    // External screenshot thumbnails served from /screenshots/<id>.png
+    if (game.thumbnailExternal) {
+      // Use provided thumbnail name to allow future custom naming beyond folder id
+      return `http://localhost:${serverPort}/screenshots/${game.thumbnail}`;
+    }
     const gameType = game.category === "game" ? "games" : "emulators";
     return `http://localhost:${serverPort}/${gameType}/${game.path}/${game.thumbnail}`;
   };

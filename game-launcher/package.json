@@ -6,11 +6,12 @@
   "scripts": {
     "start": "ELECTRON_IS_DEV=0 electron .",
     "start:clean": "CLEAR_CACHE=1 ELECTRON_IS_DEV=0 electron .",
-    "start:dev": "electron .",
+    "start:dev": "npm run dev",
     "dev": "concurrently \"npm run react-dev\" \"wait-on http://localhost:3000 && electron .\"",
     "react-dev": "react-scripts start",
     "build": "react-scripts build",
     "prepare:assets": "node scripts/prepare-assets.js",
+    "generate:icons": "node scripts/generate-icons.js",
     "pack": "npm run build && npm run prepare:assets && electron-builder --dir",
     "dist": "npm run build && npm run prepare:assets && electron-builder",
     "pack:mac": "npm run build && npm run prepare:assets && electron-builder --mac --dir",
@@ -39,7 +40,9 @@
     "electron-builder": "^24.6.4",
     "fs-extra": "^11.2.0",
     "electron": "^27.0.0",
-    "wait-on": "^7.2.0"
+    "wait-on": "^7.2.0",
+    "sharp": "^0.33.2",
+    "icon-gen": "^4.0.0"
   },
   "build": {
     "appId": "com.gfiles.launcher",
@@ -50,6 +53,9 @@
     "files": [
       "build/**/*",
       "public/electron.js",
+      "public/logo.svg",
+      "public/icons/**/*",
+      "public/screenshots/**/*",
       "src/server.js",
       "src/gameScanner.js",
       "config/**/*",
@@ -65,13 +71,16 @@
       }
     ],
     "mac": {
-      "category": "public.app-category.games"
+      "category": "public.app-category.games",
+      "icon": "public/icons/icon.icns"
     },
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "public/icons/icon.ico"
     },
     "linux": {
-      "target": "AppImage"
+      "target": "AppImage",
+      "icon": "public/icons/icon-256.png"
     }
   },
   "browserslist": {

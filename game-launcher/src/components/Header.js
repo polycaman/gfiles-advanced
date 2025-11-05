@@ -8,19 +8,10 @@ const Header = () => {
         <div className="logo">
           <img
             src={process.env.PUBLIC_URL + "/logo.svg"}
-            alt="App Logo"
+            alt="GFiles Game Launcher Logo"
             className="app-logo"
           />
           <h1 className="logo-text">GFiles Game Launcher</h1>
-        </div>
-
-        <div className="header-actions">
-          <button className="header-button" title="Refresh Games">
-            🔄
-          </button>
-          <button className="header-button" title="Settings">
-            ⚙️
-          </button>
         </div>
       </div>
     </header>

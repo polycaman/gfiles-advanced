@@ -80,6 +80,7 @@ class GameScanner {
     let title = this.formatGameName(folderName);
     let description = "";
     let thumbnail = null;
+    let thumbnailExternal = false;
 
     try {
       // Try to extract title from HTML
@@ -87,6 +88,33 @@ class GameScanner {
       const titleMatch = htmlContent.match(/<title[^>]*>([^<]+)<\/title>/i);
       if (titleMatch && titleMatch[1]) {
         title = titleMatch[1].trim();
+      }
+
+      // 1. Primary thumbnail source: public/screenshots/<folderName>.png (exact match)
+      // Works in dev (public/) and in production (copied into build and packaged via electron-builder files list)
+      // Resolve screenshots directory from multiple candidates to work in dev or pseudo-production
+      const screenshotCandidates = [
+        path.join(__dirname, "../public/screenshots"), // project root (one level up from src)
+        path.join(process.resourcesPath || "", "public", "screenshots"), // packaged resources
+        path.join(process.cwd(), "public", "screenshots"), // cwd fallback when electron started from project root
+      ].filter((p) => p && p.trim().length > 0);
+
+      let screenshotsDir = screenshotCandidates.find((p) => fs.existsSync(p));
+      if (process.env.SCANNER_DEBUG === "1") {
+        console.log("[Scanner] Screenshot candidates:", screenshotCandidates);
+        console.log("[Scanner] Using screenshotsDir:", screenshotsDir);
+      }
+      if (screenshotsDir) {
+        const candidate = path.join(screenshotsDir, `${folderName}.png`);
+        const existsScreenshot = fs.existsSync(candidate);
+        if (existsScreenshot) {
+          thumbnail = `${folderName}.png`;
+          thumbnailExternal = true; // served from /screenshots route instead of /games|/emulators
+        }
+        // Always log for troubleshooting external screenshot resolution
+        console.log(
+          `[Scanner] Screenshot check for ${folderName}: path=${candidate} exists=${existsScreenshot}`
+        );
       }
 
       // Look for common thumbnail/icon files
@@ -100,15 +128,26 @@ class GameScanner {
         "cover",
       ];
 
-      for (const name of imageNames) {
-        for (const ext of imageExtensions) {
-          const imagePath = path.join(folderPath, name + ext);
-          if (fs.existsSync(imagePath)) {
-            thumbnail = `${name}${ext}`;
-            break;
+      // Only search inside the game folder if no external screenshot already chosen
+      if (!thumbnail) {
+        for (const name of imageNames) {
+          for (const ext of imageExtensions) {
+            const imagePath = path.join(folderPath, name + ext);
+            if (fs.existsSync(imagePath)) {
+              thumbnail = `${name}${ext}`;
+              if (process.env.SCANNER_DEBUG === "1") {
+                console.log(
+                  "[Scanner] Internal thumbnail found for",
+                  folderName,
+                  "=>",
+                  thumbnail
+                );
+              }
+              break;
+            }
           }
+          if (thumbnail) break;
         }
-        if (thumbnail) break;
       }
 
       // Look for meta description
@@ -129,6 +168,7 @@ class GameScanner {
       type,
       path: folderName,
       thumbnail,
+      thumbnailExternal,
       lastModified: fs.statSync(folderPath).mtime,
       size: this.getFolderSize(folderPath),
     };

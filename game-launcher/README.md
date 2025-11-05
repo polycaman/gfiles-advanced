@@ -1,29 +1,79 @@
 # GFiles Game Launcher
 
-A responsive Electron application that serves as a game library for your local HTML5 games and emulators. This launcher scans your games and emulators folders, displays them in a beautiful grid layout, and allows you to launch any game with a single click.
+GFiles Game Launcher; orijinal GFiles projesinin Electron tabanlı yerel (offline) çalıştırma sürümüdür. Bu uygulama bilgisayarındaki GFiles oyunlarını bir merkez (hub) gibi tarar, listeler ve internet bağlantısına gerek kalmadan tek tıkla açmanı sağlar. İstersen hazır bir sürümü indirip kullanabilir, istersen kaynak koddan kendin derleyebilirsin.
+
+English summary: GFiles Game Launcher is an Electron-based application designed for playing the original GFiles games locally. This repository is a fork of the original GFiles project. The launcher works as a game hub, allowing you to browse and run the games offline on your computer. You can either download a release version or build it yourself from the source.
 
 ## Features
 
-- 🎮 **Game Library**: Automatically scans and displays all games from your `games/` and `emulators/` folders
+- 🎮 **Game Library**: Automatically scans and displays all games from your `games/` and `emulators/` folders (offline)
 - 🔍 **Search & Filter**: Search games by name and filter by category (Games/Emulators)
 - 📱 **Responsive Design**: Optimized for different screen sizes
 - 🚀 **One-Click Launch**: Launch games directly in a new window
 - 🎨 **Modern UI**: Dark theme with smooth animations and hover effects
 - 📊 **Game Info**: Shows game metadata, file size, and last modified date
 - 🖼️ **Thumbnails**: Automatically detects and displays game thumbnails
-  
-## Icon Simplification
 
-Bu sürümde karmaşık ikon üretim sistemi (PNG, ICO, ICNS oluşturma) kaldırıldı. Artık tek bir `public/icon.svg` dosyası tüm uygulama için kullanılıyor.
+## Icon Assets
+
+Artık temel kaynak ikon dosyamız `public/logo.svg`. Bu SVG'den otomatik olarak platform paketleme için gereken raster ikonlar üretilir:
+
+- `public/icons/icon.ico` (Windows)
+- `public/icons/icon.icns` (macOS)
+- `public/icons/icon-256.png` / `icon-512.png` (Linux ve yedekler)
+
+Oluşturma işlemi için bir script vardır:
+
+```bash
+npm run generate:icons
+```
+
+Bu script `logo.svg` üzerinden gerekli boyutları yeniden üretir. Eğer özel bir tasarımla güncellerseniz sadece `logo.svg` dosyasını değiştirip scripti çalıştırın.
+
+Temizlik Yapılanlar:
+
+- Eski `icon.svg` kaldırıldı.
+- Build çıktısındaki gereksiz kopya ikon dosyaları temizlendi.
 
 Notlar:
-- Electron paketlerken platforma özel (`.icns`, `.ico`, `.png`) ikon gereksinimleri varsa varsayılan Electron ikonu kullanılabilir.
-- Eğer dağıtımda özel platform ikonları istenirse manuel dönüştürme (ör: bir tasarım aracıyla) yapıp ilgili dosyaları tekrar `build` ayarlarına ekleyebilirsiniz.
 
-Avantajlar:
-- Daha az bağımlılık (sharp, icon-gen kaldırıldı)
-- Daha hızlı kurulum
-- Daha basit yapı betikleri
+- Dağıtım yapılmadan önce ikonları değiştirmek isterseniz SVG'yi güncellemeniz yeterli.
+- Linux dağıtımında electron-builder en büyük uygun PNG'yi seçebilir; hem 256 hem 512 tutulabilir. İhtiyaç duymazsanız fazlalıkları silebilirsiniz.
+
+## Generated Artifacts & Cleanup
+
+The following directories/files are generated and should not be committed. They are safe to delete at any time; scripts will recreate them when needed:
+
+| Path               | Source                      | Recreated By                    | Purpose                                                       |
+| ------------------ | --------------------------- | ------------------------------- | ------------------------------------------------------------- |
+| `build/`           | CRA (`react-scripts build`) | `npm run build`                 | React production assets loaded by Electron in production mode |
+| `dist/`            | electron-builder            | `npm run dist` / `npm run pack` | Packaged installer/output artifacts                           |
+| `packaged-assets/` | `scripts/prepare-assets.js` | `npm run prepare:assets`        | Copied subset of `../games` and `../emulators` for bundling   |
+| `public/icons/`    | `scripts/generate-icons.js` | `npm run generate:icons`        | Platform-specific icon raster/ICO/ICNS files                  |
+| `node_modules/`    | npm                         | `npm install`                   | Dependency tree                                               |
+| `.DS_Store`        | macOS Finder                | (auto)                          | Should be removed/ignored                                     |
+
+Git ignore patterns already cover these. If any appear in version control, remove them:
+
+```bash
+rm -rf build dist packaged-assets public/icons .DS_Store
+```
+
+Then regenerate what you need:
+
+```bash
+npm run build            # React production build
+npm run prepare:assets   # Copy filtered games/emulators
+npm run generate:icons   # Regenerate icon set from logo.svg
+```
+
+Fast one-liner to fully reset generated state:
+
+```bash
+rm -rf build dist packaged-assets public/icons && npm run build && npm run prepare:assets && npm run generate:icons
+```
+
+If `npm start` fails after cleanup, ensure `build/` exists (run `npm run build`). For packaging, always run the asset and icon generation scripts first.
 
 ## Prerequisites
 

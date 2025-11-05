@@ -5,7 +5,10 @@
   overflow: hidden;
   transition: var(--transition);
   cursor: pointer;
-  height: fit-content;
+  height: 22rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
 }
 
 .game-card:hover {

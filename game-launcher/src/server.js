@@ -6,17 +6,43 @@ class GameServer {
   constructor() {
     this.app = express();
     this.server = null;
-    // Detect packaged mode: when app is asar/installed, resourcesPath will contain extraResources.
-    const resourcesRoot =
-      process.resourcesPath || path.join(__dirname, "../../");
+    // Detect packaged mode properly: use electron.app.isPackaged to decide root resolution.
+    let electronApp = null;
+    try {
+      electronApp = require("electron").app;
+    } catch (_) {}
+    const isPackagedFlag = electronApp ? electronApp.isPackaged : false;
+    const resourcesRoot = isPackagedFlag
+      ? process.resourcesPath
+      : path.join(__dirname, "../../");
     const packagedAssets = path.join(resourcesRoot, "packaged-assets");
-    const isPackaged = require("fs").existsSync(packagedAssets);
+    const isPackaged =
+      isPackagedFlag && require("fs").existsSync(packagedAssets);
     if (isPackaged) {
       this.gamesPath = path.join(packagedAssets, "games");
       this.emulatorsPath = path.join(packagedAssets, "emulators");
     } else {
       this.gamesPath = path.join(__dirname, "../../games");
       this.emulatorsPath = path.join(__dirname, "../../emulators");
+    }
+    // Screenshots directory resolution (supports running "electron ." un-packaged but production mode):
+    const screenshotCandidates = [
+      path.join(__dirname, "../public/screenshots"), // project root (one level up from src)
+      path.join(resourcesRoot, "public", "screenshots"), // packaged resources
+    ];
+    this.screenshotsPath = screenshotCandidates.find((p) =>
+      require("fs").existsSync(p)
+    );
+    if (this.screenshotsPath) {
+      console.log(
+        "[Server] Screenshots directory detected:",
+        this.screenshotsPath
+      );
+    } else {
+      console.log(
+        "[Server] No screenshots directory found in candidates:",
+        screenshotCandidates
+      );
     }
     this.setupMiddleware();
     this.setupRoutes();
@@ -84,6 +110,14 @@ class GameServer {
         },
       })
     );
+
+    // Serve external screenshot thumbnails if available
+    if (
+      this.screenshotsPath &&
+      require("fs").existsSync(this.screenshotsPath)
+    ) {
+      this.app.use("/screenshots", express.static(this.screenshotsPath));
+    }
 
     // Game launcher endpoint
     this.app.get("/launch/:type/:game", (req, res) => {

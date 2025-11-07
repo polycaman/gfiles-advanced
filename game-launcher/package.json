@@ -16,6 +16,10 @@
     "dist": "npm run build && npm run prepare:assets && electron-builder",
     "pack:mac": "npm run build && npm run prepare:assets && electron-builder --mac --dir",
     "dist:mac": "npm run build && npm run prepare:assets && electron-builder --mac",
+    "pack:linux": "npm run build && npm run prepare:assets && electron-builder --linux --dir",
+    "dist:linux": "npm run build && npm run prepare:assets && electron-builder --linux",
+    "pack:win": "npm run build && npm run prepare:assets && electron-builder --win --dir",
+    "dist:win": "npm run build && npm run prepare:assets && electron-builder --win",
     "cleanup:icons": "rm -rf public/icons build/icons",
     "postinstall": "electron-builder install-app-deps"
   },
@@ -72,11 +76,11 @@
     ],
     "mac": {
       "category": "public.app-category.games",
-      "icon": "public/icons/icon.icns"
+      "icon": "public/icons/app.icns"
     },
     "win": {
       "target": "nsis",
-      "icon": "public/icons/icon.ico"
+      "icon": "public/icons/app.ico"
     },
     "linux": {
       "target": "AppImage",

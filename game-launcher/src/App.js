@@ -1,86 +1,147 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import "./App.css";
 import GameGrid from "./components/GameGrid";
 import SearchBar from "./components/SearchBar";
 import Header from "./components/Header";
 import LoadingSpinner from "./components/LoadingSpinner";
 
+const categories = [
+  { value: "all", label: "All Games" },
+  { value: "game", label: "Games" },
+  { value: "emulator", label: "Emulators" },
+];
+
 function App() {
   const [games, setGames] = useState([]);
-  const [filteredGames, setFilteredGames] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [serverPort, setServerPort] = useState(null);
+  const abortRef = useRef(null);
 
   useEffect(() => {
     loadGames();
+    return () => {
+      if (abortRef.current) abortRef.current.abort();
+    };
   }, []);
 
-  useEffect(() => {
-    filterGames();
-  }, [games, searchQuery, selectedCategory]);
-
   const loadGames = async () => {
+    setLoading(true);
+    setError(null);
+    if (abortRef.current) abortRef.current.abort();
+    const ac = new AbortController();
+    abortRef.current = ac;
+
     try {
-      setLoading(true);
-      setError(null);
-
-      console.log("Loading games...");
-      console.log("electronAPI available:", !!window.electronAPI);
-
-      if (window.electronAPI) {
-        console.log("Calling electronAPI.getGames()");
-        const [gameData, port] = await Promise.all([
-          window.electronAPI.getGames(),
-          window.electronAPI.getServerPort(),
-        ]);
-        console.log("Game data received:", gameData);
-        console.log("Server port:", port);
-        setServerPort(port);
-        const allGames = [
-          ...gameData.games.map((game) => ({ ...game, category: "game" })),
-          ...gameData.emulators.map((emu) => ({
-            ...emu,
-            category: "emulator",
-          })),
-        ];
-        console.log("Total games loaded:", allGames.length);
-        setGames(allGames);
-      } else {
-        console.warn("electronAPI not available - running in browser mode");
-        // Fallback for development
+      if (!window.electronAPI) {
         setGames([]);
+        setServerPort(null);
+        return;
       }
+
+      if (process.env.NODE_ENV === "development") {
+        console.log("Loading games via electronAPI");
+      }
+
+      const [gameData, port] = await Promise.all([
+        window.electronAPI.getGames(),
+        window.electronAPI.getServerPort(),
+      ]);
+
+      if (ac.signal.aborted) return;
+
+      const baseUrl = port ? `http://localhost:${port}` : "";
+      const buildThumbFields = (record, id) => {
+        const explicit = record.thumbnail || record.screenshot || record.image;
+        if (explicit && /^(https?:)?\/\//i.test(explicit)) {
+          return {
+            thumbnail: `${id}.png`,
+            thumbnailExternal: true,
+            thumbnailUrl: explicit,
+          };
+        }
+        if (explicit) {
+          return {
+            thumbnail: explicit,
+            thumbnailExternal: !explicit.includes("/"),
+          };
+        }
+        return {
+          thumbnail: `${id}.png`,
+          thumbnailExternal: true,
+        };
+      };
+
+      const allGames = [
+        ...(gameData?.games || []).map((g) => {
+          const id = g.id || g.title;
+          const thumbFields = buildThumbFields(g, id);
+          if (process.env.NODE_ENV === "development") {
+            console.log("Game mapping", id, thumbFields);
+          }
+          return {
+            id,
+            title: g.title || "Untitled",
+            description: g.description || "",
+            path: g.path,
+            category: "game",
+            type: "game",
+            size: g.size,
+            lastModified: g.lastModified,
+            ...thumbFields,
+          };
+        }),
+        ...(gameData?.emulators || []).map((e) => {
+          const id = e.id || e.title;
+          const thumbFields = buildThumbFields(e, id);
+          if (process.env.NODE_ENV === "development") {
+            console.log("Emulator mapping", id, thumbFields);
+          }
+          return {
+            id,
+            title: e.title || "Untitled Emulator",
+            description: e.description || "",
+            path: e.path,
+            category: "emulator",
+            type: "emulator",
+            size: e.size,
+            lastModified: e.lastModified,
+            ...thumbFields,
+          };
+        }),
+      ];
+
+      setGames(allGames);
+      setServerPort(port || null);
     } catch (err) {
-      console.error("Error loading games:", err);
-      setError(`Failed to load games: ${err.message}`);
+      if (!ac.signal.aborted) {
+        setError(`Failed to load games: ${err.message}`);
+      }
     } finally {
-      setLoading(false);
+      if (!abortRef.current?.signal.aborted) {
+        setLoading(false);
+      }
     }
   };
-  const filterGames = () => {
-    let filtered = games;
 
-    // Filter by category
-    if (selectedCategory !== "all") {
-      filtered = filtered.filter((game) => game.category === selectedCategory);
-    }
-
-    // Filter by search query
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
-      filtered = filtered.filter(
-        (game) =>
-          game.title.toLowerCase().includes(query) ||
-          game.description.toLowerCase().includes(query) ||
-          game.id.toLowerCase().includes(query)
-      );
-    }
-
-    setFilteredGames(filtered);
-  };
+  const filteredGames = useMemo(() => {
+    const query = searchQuery.toLowerCase().trim();
+    return games.filter((game) => {
+      if (selectedCategory !== "all" && game.category !== selectedCategory) {
+        return false;
+      }
+      if (!query) return true;
+      const haystack =
+        (game.title || "") +
+        " " +
+        (game.description || "") +
+        " " +
+        (game.id || "");
+      return haystack.toLowerCase().includes(query);
+    });
+  }, [games, searchQuery, selectedCategory]);
 
   const handleGameLaunch = async (game) => {
     try {
@@ -89,16 +150,9 @@ function App() {
         await window.electronAPI.launchGame(game.path, gameType);
       }
     } catch (err) {
-      console.error("Error launching game:", err);
       setError("Failed to launch game. Please try again.");
     }
   };
-
-  const categories = [
-    { value: "all", label: "All Games" },
-    { value: "game", label: "Games" },
-    { value: "emulator", label: "Emulators" },
-  ];
 
   if (loading) {
     return (
@@ -112,51 +166,52 @@ function App() {
   return (
     <div className="app">
       <Header />
-
-      <main className="main-content">
-        <div className="controls">
-          <SearchBar
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            selectedCategory={selectedCategory}
-            onCategoryChange={setSelectedCategory}
-            categories={categories}
-          />
-        </div>
-
-        {error && (
-          <div className="error-message">
-            <p>{error}</p>
-            <button onClick={loadGames} className="retry-button">
-              Retry
-            </button>
+      <div className="content-scroll">
+        <main className="main-content">
+          <div className="controls">
+            <SearchBar
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              selectedCategory={selectedCategory}
+              onCategoryChange={setSelectedCategory}
+              categories={categories}
+            />
           </div>
-        )}
 
-        <div className="game-stats">
-          <p>
-            Showing {filteredGames.length} of {games.length} games
-            {selectedCategory !== "all" && ` in ${selectedCategory}s`}
-          </p>
-        </div>
+          {error && (
+            <div className="error-message">
+              <p>{error}</p>
+              <button onClick={loadGames} className="retry-button">
+                Retry
+              </button>
+            </div>
+          )}
 
-        <GameGrid
-          games={filteredGames}
-          onGameLaunch={handleGameLaunch}
-          serverPort={serverPort}
-        />
-
-        {filteredGames.length === 0 && !loading && !error && (
-          <div className="no-games">
-            <h3>No games found</h3>
+          <div className="game-stats">
             <p>
-              {searchQuery || selectedCategory !== "all"
-                ? "Try adjusting your search or category filter."
-                : "No games available in the library."}
+              Showing {filteredGames.length} of {games.length} games
+              {selectedCategory !== "all" && ` in ${selectedCategory}s`}
             </p>
           </div>
-        )}
-      </main>
+
+          <GameGrid
+            games={filteredGames}
+            onGameLaunch={handleGameLaunch}
+            serverPort={serverPort}
+          />
+
+          {filteredGames.length === 0 && !loading && !error && (
+            <div className="no-games">
+              <h3>No games found</h3>
+              <p>
+                {searchQuery || selectedCategory !== "all"
+                  ? "Try adjusting your search or category filter."
+                  : "No games available in the library."}
+              </p>
+            </div>
+          )}
+        </main>
+      </div>
     </div>
   );
 }

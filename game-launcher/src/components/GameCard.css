@@ -8,7 +8,7 @@
   height: 22rem;
   display: flex;
   flex-direction: column;
-  justify-content: space-evenly;
+  justify-content: space-between;
 }
 
 .game-card:hover {
@@ -19,7 +19,7 @@
 
 .game-card-image {
   position: relative;
-  height: 180px;
+  height: 13rem;
   overflow: hidden;
   background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
 }
@@ -140,7 +140,11 @@
 }
 
 .game-card-content {
-  padding: 1rem;
+  padding: 0.5rem;
+  height: 9rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .game-card-header {
@@ -165,7 +169,7 @@
 }
 
 .game-type {
-  background: var(--primary-color);
+  background: #075700;
   color: white;
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
@@ -177,7 +181,7 @@
 }
 
 .game-type.emulator {
-  background: var(--warning-color);
+  background: #b40000;
 }
 
 .game-description {
@@ -216,10 +220,6 @@
 @media (max-width: 480px) {
   .game-card-image {
     height: 160px;
-  }
-
-  .game-card-content {
-    padding: 0.75rem;
   }
 
   .game-title {

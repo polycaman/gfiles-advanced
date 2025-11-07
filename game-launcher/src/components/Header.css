@@ -2,10 +2,10 @@
   background: var(--surface-color);
   border-bottom: 1px solid var(--border-color);
   padding: 1rem 0;
-  position: sticky;
-  top: 0;
   z-index: 100;
   backdrop-filter: blur(10px);
+  -webkit-app-region: drag; /* entire header draggable */
+  user-select: none; /* avoid text selection while dragging */
 }
 
 .header-content {
@@ -20,6 +20,7 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  /* no 'no-drag' so logo area also drags */
 }
 
 .logo-icon {
@@ -36,19 +37,6 @@
   display: block;
   object-fit: contain;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
-}
-
-.logo-text {
-  font-size: 1.5rem;
-  font-weight: 700;
-  background: linear-gradient(
-    135deg,
-    var(--text-primary),
-    var(--text-secondary)
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
 }
 
 .header-actions {
@@ -70,6 +58,7 @@
   justify-content: center;
   width: 40px;
   height: 40px;
+  -webkit-app-region: no-drag; /* keep buttons clickable if added */
 }
 
 .header-button:hover {
@@ -82,10 +71,6 @@
 @media (max-width: 768px) {
   .header-content {
     padding: 0 0.5rem;
-  }
-
-  .logo-text {
-    font-size: 1.25rem;
   }
 
   .logo-icon {

@@ -1,3 +1,11 @@
+html,
+body,
+.app {
+  height: 100%;
+}
+body {
+  overflow: auto; /* allow global scrollbar fallback */
+}
 .app {
   min-height: 100vh;
   display: flex;
@@ -5,12 +13,32 @@
   background: linear-gradient(135deg, var(--background-color) 0%, #1a202c 100%);
 }
 
-.main-content {
+.content-scroll {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* enable child overflow */
+  overflow-y: auto; /* scrollbar appears below header */
+  -webkit-overflow-scrolling: touch;
+}
+
+.main-content {
   padding: 1rem;
   max-width: 1400px;
   margin: 0 auto;
   width: 100%;
+  animation: fade-in 300ms ease-in;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .controls {
@@ -39,7 +67,7 @@
 
 .retry-button {
   background: var(--error-color);
-  color: white;
+  color: #fff;
   border: none;
   padding: 0.5rem 1rem;
   border-radius: var(--border-radius);
@@ -50,6 +78,10 @@
 
 .retry-button:hover {
   background: #dc2626;
+}
+.retry-button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
 }
 
 .no-games {
@@ -63,13 +95,20 @@
   color: var(--text-primary);
 }
 
-/* Responsive Design */
 @media (max-width: 768px) {
   .main-content {
     padding: 0.5rem;
   }
-
   .controls {
     margin-bottom: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .main-content {
+    animation: none;
+  }
+  .retry-button {
+    transition: none;
   }
 }

@@ -1,8 +1,3 @@
-#!/usr/bin/env node
-/**
- * Gerçek ikon üretimi: public/logo.svg -> PNG boyutları + ICO + ICNS.
- * Ekstra CLI gerektirmez; sharp + icon-gen kullanır.
- */
 const path = require("path");
 const fs = require("fs");
 const sharp = require("sharp");

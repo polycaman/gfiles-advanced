@@ -1,252 +1,258 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const fs = require("fs");
+
+const DEFAULT_GAME_TYPES = new Set(["games", "emulators"]);
+
+function safeExists(p) {
+  try {
+    return fs.existsSync(p);
+  } catch {
+    return false;
+  }
+}
+
+function detectPaths() {
+  let electronApp;
+  try {
+    electronApp = require("electron").app;
+  } catch {
+    /* optional */
+  }
+  const isPackagedFlag = electronApp ? electronApp.isPackaged : false;
+  const resourcesRoot = isPackagedFlag
+    ? process.resourcesPath
+    : path.join(__dirname, "../../");
+  const packagedAssets = path.join(resourcesRoot, "packaged-assets");
+  const packaged = isPackagedFlag && safeExists(packagedAssets);
+
+  const baseGames = packaged
+    ? path.join(packagedAssets, "games")
+    : path.join(__dirname, "../../games");
+  const baseEmus = packaged
+    ? path.join(packagedAssets, "emulators")
+    : path.join(__dirname, "../../emulators");
+
+  const screenshotCandidates = [
+    path.join(__dirname, "../public/screenshots"),
+    path.join(resourcesRoot, "public", "screenshots"),
+  ];
+  const screenshots = screenshotCandidates.find(safeExists) || null;
+
+  return {
+    packaged,
+    gamesPath: baseGames,
+    emulatorsPath: baseEmus,
+    screenshotsPath: screenshots,
+    resourcesRoot,
+  };
+}
+
+function buildStatic(rootPath) {
+  return express.static(rootPath, {
+    fallthrough: true,
+  });
+}
+
+function sanitizeSegment(seg) {
+  if (!/^[a-zA-Z0-9._-]+$/.test(seg)) return null;
+  return seg;
+}
 
 class GameServer {
-  constructor() {
+  constructor(opts = {}) {
+    const {
+      logger = console,
+      host = process.env.HOST || "127.0.0.1",
+      allowedGameTypes = DEFAULT_GAME_TYPES,
+      cooperativeIsolation = false,
+      pathsConfig = detectPaths(),
+    } = opts;
+
+    this.logger = logger;
+    this.host = host;
+    this.allowedGameTypes = allowedGameTypes;
+    this.cooperativeIsolation = cooperativeIsolation;
+    this.paths = pathsConfig;
+
     this.app = express();
     this.server = null;
-    // Detect packaged mode properly: use electron.app.isPackaged to decide root resolution.
-    let electronApp = null;
-    try {
-      electronApp = require("electron").app;
-    } catch (_) {}
-    const isPackagedFlag = electronApp ? electronApp.isPackaged : false;
-    const resourcesRoot = isPackagedFlag
-      ? process.resourcesPath
-      : path.join(__dirname, "../../");
-    const packagedAssets = path.join(resourcesRoot, "packaged-assets");
-    const isPackaged =
-      isPackagedFlag && require("fs").existsSync(packagedAssets);
-    if (isPackaged) {
-      this.gamesPath = path.join(packagedAssets, "games");
-      this.emulatorsPath = path.join(packagedAssets, "emulators");
-    } else {
-      this.gamesPath = path.join(__dirname, "../../games");
-      this.emulatorsPath = path.join(__dirname, "../../emulators");
-    }
-    // Screenshots directory resolution (supports running "electron ." un-packaged but production mode):
-    const screenshotCandidates = [
-      path.join(__dirname, "../public/screenshots"), // project root (one level up from src)
-      path.join(resourcesRoot, "public", "screenshots"), // packaged resources
-    ];
-    this.screenshotsPath = screenshotCandidates.find((p) =>
-      require("fs").existsSync(p)
-    );
-    if (this.screenshotsPath) {
-      console.log(
-        "[Server] Screenshots directory detected:",
-        this.screenshotsPath
-      );
-    } else {
-      console.log(
-        "[Server] No screenshots directory found in candidates:",
-        screenshotCandidates
-      );
-    }
-    this.setupMiddleware();
-    this.setupRoutes();
+
+    this._setupMiddleware();
+    this._setupRoutes();
   }
 
-  setupMiddleware() {
-    // Enable CORS for all routes
-    this.app.use(
-      cors({
-        origin: true,
-        credentials: true,
-      })
-    );
+  _setupMiddleware() {
+    this.app.use(cors({ origin: true, credentials: true }));
+    this.app.use(express.json({ limit: "1mb" }));
 
-    // Set security headers for serving games
     this.app.use((req, res, next) => {
-      res.setHeader("Cross-Origin-Embedder-Policy", "unsafe-none");
-      res.setHeader("Cross-Origin-Opener-Policy", "unsafe-none");
+      if (this.cooperativeIsolation) {
+        res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+        res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+      } else {
+        res.setHeader("Cross-Origin-Embedder-Policy", "unsafe-none");
+        res.setHeader("Cross-Origin-Opener-Policy", "unsafe-none");
+      }
       res.setHeader("X-Frame-Options", "SAMEORIGIN");
       next();
     });
   }
 
-  setupRoutes() {
-    // Health check
+  _setupRoutes() {
     this.app.get("/health", (req, res) => {
-      res.json({ status: "ok", timestamp: new Date().toISOString() });
+      res.json({ status: "ok", ts: Date.now(), packaged: this.paths.packaged });
     });
 
-    // Serve games
-    this.app.use(
-      "/games",
-      express.static(this.gamesPath, {
-        setHeaders: (res, path, stat) => {
-          // Set appropriate headers for different file types
-          if (path.endsWith(".html")) {
-            res.setHeader("Content-Type", "text/html; charset=utf-8");
-          } else if (path.endsWith(".js")) {
-            res.setHeader(
-              "Content-Type",
-              "application/javascript; charset=utf-8"
-            );
-          } else if (path.endsWith(".css")) {
-            res.setHeader("Content-Type", "text/css; charset=utf-8");
-          }
-        },
-      })
-    );
+    this.app.use("/games", buildStatic(this.paths.gamesPath));
+    this.app.use("/emulators", buildStatic(this.paths.emulatorsPath));
 
-    // Serve emulators
-    this.app.use(
-      "/emulators",
-      express.static(this.emulatorsPath, {
-        setHeaders: (res, path, stat) => {
-          if (path.endsWith(".html")) {
-            res.setHeader("Content-Type", "text/html; charset=utf-8");
-          } else if (path.endsWith(".js")) {
-            res.setHeader(
-              "Content-Type",
-              "application/javascript; charset=utf-8"
-            );
-          } else if (path.endsWith(".css")) {
-            res.setHeader("Content-Type", "text/css; charset=utf-8");
-          }
-        },
-      })
-    );
-
-    // Serve external screenshot thumbnails if available
-    if (
-      this.screenshotsPath &&
-      require("fs").existsSync(this.screenshotsPath)
-    ) {
-      this.app.use("/screenshots", express.static(this.screenshotsPath));
+    if (this.paths.screenshotsPath) {
+      this.logger.log("[Server] Screenshots:", this.paths.screenshotsPath);
+      this.app.use("/screenshots", buildStatic(this.paths.screenshotsPath));
+    } else {
+      this.logger.log("[Server] No screenshots directory found.");
     }
 
-    // Game launcher endpoint
     this.app.get("/launch/:type/:game", (req, res) => {
-      const { type, game } = req.params;
+      const rawType = req.params.type;
+      const rawGame = req.params.game;
 
-      if (type !== "games" && type !== "emulators") {
+      const type = sanitizeSegment(rawType);
+      const game = sanitizeSegment(rawGame);
+
+      if (!type || !this.allowedGameTypes.has(type)) {
         return res.status(400).json({ error: "Invalid game type" });
       }
-
-      const gamePath = type === "games" ? this.gamesPath : this.emulatorsPath;
-      const indexPath = path.join(gamePath, game, "index.html");
-
-      try {
-        if (!require("fs").existsSync(indexPath)) {
-          return res.status(404).json({ error: "Game not found" });
-        }
-
-        res.redirect(`/${type}/${game}/`);
-      } catch (error) {
-        console.error("Error launching game:", error);
-        res.status(500).json({ error: "Failed to launch game" });
+      if (!game) {
+        return res.status(400).json({ error: "Invalid game id" });
       }
+
+      const root =
+        type === "games" ? this.paths.gamesPath : this.paths.emulatorsPath;
+      const indexPath = path.join(root, game, "index.html");
+
+      if (!safeExists(indexPath)) {
+        return res.status(404).json({ error: "Game not found" });
+      }
+
+      res.redirect(`/${type}/${encodeURIComponent(game)}/`);
     });
 
-    // Error handler
-    this.app.use((err, req, res, next) => {
-      console.error("Server error:", err);
-      res.status(500).json({ error: "Internal server error" });
-    });
+    if (process.env.NODE_ENV !== "production") {
+      this.app.get("/_status", (req, res) => {
+        res.json({
+          uptime: process.uptime(),
+          memory: process.memoryUsage(),
+          paths: this.paths,
+        });
+      });
+    }
 
-    // 404 handler
     this.app.use((req, res) => {
       res.status(404).json({ error: "Not found" });
     });
+
+    // eslint-disable-next-line no-unused-vars
+    this.app.use((err, req, res, next) => {
+      this.logger.error("Server error:", err);
+      res.status(500).json({ error: "Internal server error" });
+    });
   }
 
-  async start(port = 0) {
+  start(port = 0) {
+    if (this.server) return Promise.resolve(this.server.address().port);
     return new Promise((resolve, reject) => {
-      this.server = this.app.listen(port, "localhost", (err) => {
-        if (err) {
-          reject(err);
-        } else {
-          const actualPort = this.server.address().port;
-          console.log(`Game server started on http://localhost:${actualPort}`);
-          resolve(actualPort);
-        }
+      const srv = this.app.listen(port, this.host, (err) => {
+        if (err) return reject(err);
+        this.server = srv;
+        const actual = srv.address().port;
+        this.logger.log(`Game server listening http://${this.host}:${actual}`);
+        resolve(actual);
       });
     });
   }
 
-  stop() {
-    if (this.server) {
-      this.server.close();
-      this.server = null;
-      console.log("Game server stopped");
-    }
+  async stop() {
+    if (!this.server) return;
+    const srv = this.server;
+    this.server = null;
+    await new Promise((resolve) => srv.close(resolve));
+    this.logger.log("Game server stopped");
   }
 }
 
-let gameServer;
-let gameInstances = new Map(); // Track individual game servers
+//.  Instance Management
+let mainServer;
+const gameInstances = new Map();
+
+function getInstanceKey(gameId, gameType) {
+  return `${gameType}::${gameId}`;
+}
 
 async function startServer(port) {
-  if (!gameServer) {
-    gameServer = new GameServer();
+  if (!mainServer) {
+    mainServer = new GameServer();
   }
-  return await gameServer.start(port);
+  return mainServer.start(port);
 }
 
-function stopServer() {
-  if (gameServer) {
-    gameServer.stop();
-    gameServer = null;
+async function stopServer() {
+  if (mainServer) {
+    await mainServer.stop();
+    mainServer = null;
   }
 }
 
-async function startGameInstance(gameId, gameType, gamePath) {
-  // Create a unique key for this game instance
-  const instanceKey = `${gameType}-${gameId}`;
-
-  // If instance already exists, return its port
-  if (gameInstances.has(instanceKey)) {
-    return gameInstances.get(instanceKey).port;
+async function startGameInstance(gameId, gameType) {
+  const type = sanitizeSegment(gameType);
+  const gid = sanitizeSegment(gameId);
+  if (!type || !gid) throw new Error("Invalid game id or type");
+  const key = getInstanceKey(gid, type);
+  if (gameInstances.has(key)) {
+    return gameInstances.get(key).port;
   }
 
-  // Create new server instance for this game
-  const gameInstance = new GameServer();
-  const port = await gameInstance.start(0); // Use random available port
+  const basePaths = mainServer ? mainServer.paths : detectPaths();
+  const instance = new GameServer({ pathsConfig: basePaths });
 
-  // Store the instance
-  gameInstances.set(instanceKey, {
-    server: gameInstance,
-    port: port,
-    gameId: gameId,
-    gameType: gameType,
-    gamePath: gamePath,
+  const port = await instance.start(0);
+  gameInstances.set(key, {
+    server: instance,
+    port,
+    gameId: gid,
+    gameType: type,
     createdAt: Date.now(),
   });
-
-  console.log(`Started game instance for ${instanceKey} on port ${port}`);
+  console.log(`Started game instance ${key} on :${port}`);
   return port;
 }
 
-function stopGameInstance(gameId, gameType) {
-  const instanceKey = `${gameType}-${gameId}`;
-
-  if (gameInstances.has(instanceKey)) {
-    const instance = gameInstances.get(instanceKey);
-    instance.server.stop();
-    gameInstances.delete(instanceKey);
-    console.log(`Stopped game instance for ${instanceKey}`);
-    return true;
-  }
-
-  return false;
+async function stopGameInstance(gameId, gameType) {
+  const key = getInstanceKey(gameId, gameType);
+  const meta = gameInstances.get(key);
+  if (!meta) return false;
+  await meta.server.stop();
+  gameInstances.delete(key);
+  console.log(`Stopped game instance ${key}`);
+  return true;
 }
 
-function stopAllGameInstances() {
-  for (const [key, instance] of gameInstances) {
-    instance.server.stop();
-    console.log(`Stopped game instance for ${key}`);
+async function stopAllGameInstances() {
+  const stops = [];
+  for (const [key, meta] of gameInstances.entries()) {
+    stops.push(
+      meta.server.stop().then(() => console.log(`Stopped game instance ${key}`))
+    );
   }
+  await Promise.allSettled(stops);
   gameInstances.clear();
 }
 
 function getGameInstancePort(gameId, gameType) {
-  const instanceKey = `${gameType}-${gameId}`;
-  const instance = gameInstances.get(instanceKey);
-  return instance ? instance.port : null;
+  const key = getInstanceKey(gameId, gameType);
+  return gameInstances.get(key)?.port || null;
 }
 
 module.exports = {
@@ -256,4 +262,5 @@ module.exports = {
   stopGameInstance,
   stopAllGameInstances,
   getGameInstancePort,
+  GameServer,
 };

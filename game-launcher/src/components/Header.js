@@ -3,7 +3,7 @@ import "./Header.css";
 
 const Header = () => {
   return (
-    <header className="header">
+    <header className="header" role="banner">
       <div className="header-content">
         <div className="logo">
           <img
@@ -11,7 +11,7 @@ const Header = () => {
             alt="GFiles Game Launcher Logo"
             className="app-logo"
           />
-          <h1 className="logo-text">GFiles Game Launcher</h1>
+          <h1>GFiles Game Launcher</h1>
         </div>
       </div>
     </header>

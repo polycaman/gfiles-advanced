@@ -16,16 +16,17 @@ const SearchBar = ({
           placeholder="Search games..."
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="search-input"
+          className="form-field search-input"
+          aria-label="Search games"
         />
-        <span className="search-icon">🔍</span>
       </div>
 
       <div className="category-filter">
         <select
           value={selectedCategory}
           onChange={(e) => onCategoryChange(e.target.value)}
-          className="category-select"
+          className="form-field category-select"
+          aria-label="Filter by category"
         >
           {categories.map((category) => (
             <option key={category.value} value={category.value}>

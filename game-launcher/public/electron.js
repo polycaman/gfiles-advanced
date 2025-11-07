@@ -10,17 +10,14 @@ const {
 } = require("../src/server");
 
 let mainWindow;
-let gameWindows = new Map(); // Track multiple game windows
+let gameWindows = new Map();
 let serverPort;
-// Promote app icon to module scope so game windows can reuse it.
 let appIconGlobal = null;
 
 async function createWindow() {
-  // Determine if we should treat this as production even if electron-is-dev reports dev.
   const forceProd = process.env.ELECTRON_IS_DEV === "0";
   const runningDev = isDev && !forceProd;
 
-  // Load single SVG icon (logo.svg) instead of generated raster set.
   let appIcon;
   try {
     const fs = require("fs");
@@ -41,7 +38,6 @@ async function createWindow() {
     console.warn("[ICON] Failed to load logo.svg:", e.message);
   }
 
-  // Cache globally
   if (appIcon) {
     appIconGlobal = appIcon;
   }
@@ -57,7 +53,6 @@ async function createWindow() {
       contextIsolation: true,
       enableRemoteModule: false,
       preload: path.join(__dirname, "preload.js"),
-      // Only disable webSecurity in actual development browser mode
       webSecurity: runningDev ? false : true,
       allowRunningInsecureContent: false,
     },
@@ -66,7 +61,6 @@ async function createWindow() {
     icon: appIconGlobal || path.join(__dirname, "logo.svg"),
   });
 
-  // Optional cache clearing before first load
   if (process.env.CLEAR_CACHE === "1") {
     const ses = mainWindow.webContents.session;
     Promise.all([
@@ -88,12 +82,10 @@ async function createWindow() {
       .catch((err) => console.warn("Failed to clear cache:", err));
   }
 
-  // Establish initial load target.
   const fs = require("fs");
   const buildIndexPath = path.join(__dirname, "../build/index.html");
 
   if (runningDev) {
-    // Dev: use CRA dev server; electron.js is started after wait-on in npm script.
     try {
       await mainWindow.loadURL("http://localhost:3000");
     } catch (err) {
@@ -103,7 +95,6 @@ async function createWindow() {
       );
     }
   } else {
-    // Production style: prefer loadFile for local build to avoid 'Not allowed to load local resource'.
     try {
       if (fs.existsSync(buildIndexPath)) {
         await mainWindow.loadFile(buildIndexPath);
@@ -122,10 +113,8 @@ async function createWindow() {
     }
   }
 
-  // Diagnostics for blank screen troubleshooting
   mainWindow.webContents.on("did-finish-load", () => {
     console.log("[WINDOW] did-finish-load", mainWindow.webContents.getURL());
-    // Inject a quick JS check for React root.
     mainWindow.webContents
       .executeJavaScript(
         "(function(){const el=document.getElementById('root');return el && el.childElementCount;})()"
@@ -152,7 +141,6 @@ async function createWindow() {
       );
     }
   );
-  // Timeout fallback if nothing rendered in dev
   if (runningDev) {
     setTimeout(() => {
       if (mainWindow && !mainWindow.isDestroyed()) {
@@ -193,7 +181,6 @@ async function createWindow() {
 }
 
 async function createGameWindow(gameUrl, gameId, gameType) {
-  // Close existing window for this game if it exists
   if (gameWindows.has(gameId)) {
     const existingWindow = gameWindows.get(gameId);
     existingWindow.window.close();
@@ -207,7 +194,6 @@ async function createGameWindow(gameUrl, gameId, gameType) {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      // Keep webSecurity enabled in production for game windows
       webSecurity: runningDev ? false : true,
       allowRunningInsecureContent: false,
     },
@@ -223,13 +209,11 @@ async function createGameWindow(gameUrl, gameId, gameType) {
   });
 
   gameWindow.on("closed", () => {
-    // Stop the individual game server when window closes
     stopGameInstance(gameId, gameType);
     gameWindows.delete(gameId);
     console.log(`Game window closed for ${gameId}, server stopped`);
   });
 
-  // Store the window reference
   gameWindows.set(gameId, {
     window: gameWindow,
     gameId: gameId,
@@ -250,7 +234,6 @@ app.whenReady().then(async () => {
   }
 });
 
-// IPC to clear cache & reload on demand
 ipcMain.handle("clear-cache-and-reload", async () => {
   if (!mainWindow) return false;
   const ses = mainWindow.webContents.session;
@@ -285,11 +268,10 @@ app.on("window-all-closed", () => {
 
 app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow(); // fire-and-forget
+    createWindow();
   }
 });
 
-// IPC handlers
 ipcMain.handle("get-games", async () => {
   try {
     console.log("IPC: get-games called");
@@ -309,7 +291,6 @@ ipcMain.handle("launch-game", async (event, gamePath, gameType) => {
       `IPC: launch-game called with path: ${gamePath}, type: ${gameType}`
     );
 
-    // Start individual game server instance
     const gamePort = await startGameInstance(gamePath, gameType, gamePath);
     const gameUrl = `http://localhost:${gamePort}/${gameType}/${gamePath}/`;
 

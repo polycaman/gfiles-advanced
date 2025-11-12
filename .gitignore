@@ -1,6 +1,3 @@
-# Root .gitignore for gfiles-advanced
-# ----------------------------------
-# Game launcher build outputs & artifacts
 /game-launcher/build/
 /game-launcher/dist/
 /game-launcher/packaged-assets/
@@ -13,32 +10,23 @@
 /game-launcher/builder-debug.yml
 /game-launcher/builder-effective-config.yaml
 
-# Dependency folders (if root dependencies added later)
+
 /node_modules/
 
-# OS / editor junk
 .DS_Store
 Thumbs.db
 *.swp
 *.swo
 
-# Env files (keep example)
 .env*
 !.env.example
 
-# Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Optional cache directories
 /.cache/
 
-# Ignore macOS metadata
 .AppleDouble
 .LSOverride
-
-# Prevent ignoring essential source:
-# Keep all game content under /games and emulator configs
-# Keep launcher source under /game-launcher/src and /game-launcher/public (except icons folder above)

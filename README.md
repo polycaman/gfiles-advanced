@@ -2,102 +2,36 @@
 
 # GFiles Advanced Game Launcher
 
-> A polished, offline-first Electron + React launcher for the classic GFiles game collection. Browse, search, and play hundreds of HTML5, canvas, WebGL, and emulator-backed titles locally with an integrated lightweight HTTP server.
+> An electron launcher that lets you place gfiles HTML5 game collection offline. Technically, it gives you the option to search through games, play them full screen while they are atuomatically served by a HTTP server in the background.
 
----
+# How to install?
 
-## Table of Contents
+Go ahead and download the app from the releases.
 
-1. Motivation & Vision
-2. Features
-3. Quick Start
-4. Build From Source
-5. Game & Emulator Management
-6. Ignoring Broken / Unsupported Games
-7. Folder Structure Overview
-8. Contributing
-9. License
+# How to use?
+Open the app, click on a game and play. On windows, click <code>Ctrl + W</code> to close games or select <code>Window -> Close</code> from the top menu. Each game has it's own control set.
 
----
+If you have any issues with any games, please open up an issue on GitHub.
 
-## 1. Motivation & Vision
+# How can I build it myself?
+It is quite simple, you need to have NodeJS installed locally.
+1. Clone the repository to your local. 
+2. The project is in the game-launcher folder, so run <code>cd game-launcher</code> in your terminal.
+3. Run <code>npm install</code> first.
+4. Depending on you OS, either run:
+ - <code>npm run dist:win</code> for Windows
+ - <code>npm run dist:linux</code> for Linux
+ - <code>npm run dist:mac</code> for MacOS
+5. You are done, it is in <code>dist</code> folder.
 
-This project aims to preserve and make easily accessible a curated library of browser games. Running locally gives you:
+Note: For Windows you need to have the Developer Mode open.
 
-- Zero dependency on remote hosting outages
-- Faster load times (assets served from disk)
-- Ability to package, ignore, or patch games
-- A foundation to extend (themes, search, tagging, statistics, achievements, etc.)
+# Ignored Games
+Currently 37 games are ignored and not included in the releases. This is due to either the games are not working or the games are buggy. <code>game-launcher/config/ignore-games.json</code> is where we set the ignored games, the names has to match the folder name of the games or emulators from the original repository.
+If new games are added and some of them are fixed, we can add or remove games from this list. 
+Original repository owncer can also have a look at this list to understand which games are not working.
 
-## 2. Features
-
-- Offline play backed by a local Express HTTP server
-- Electron shell with React front-end
-- Asset preparation pipeline (`prepare:assets`)
-- Cross-platform build targets (macOS, Windows, Linux via electron-builder)
-- Ignore list for broken or unwanted games (`config/ignore-games.json`)
-- Packaged assets bundling for distribution
-- MIT licensed, fork-friendly
-
-## 3. Quick Start (Binary Usage)
-
-If release binaries are provided:
-
-1. Download the latest release for your OS from the GitHub Releases page.
-2. Install/run the app.
-
-## 4. Build From Source
-
-Requires Node.js (prefer LTS) and npm.
-
-```bash
-git clone https://github.com/polycaman/gfiles-advanced.git
-cd gfiles-advanced/game-launcher
-npm install
-# Development (React dev server + Electron)
-npm run dev
-# Production preview (no React hot reload)
-npm run start
-```
-
-### Packaging
-
-```bash
-# Create distributable installers (platform-specific)
-npm run dist
-# Directory build (unpacked) for inspection
-npm run pack
-```
-
-### macOS Specific
-
-For unsigned builds on macOS, you may need to right-click > Open the first time to bypass Gatekeeper.
-
-## 5. Game & Emulator Management
-
-- Add game folders under `games/` (each isolated with its own assets).
-- Add emulators under `emulators/` (e.g., Ruffle or RetroArch build integrations).
-- The launcher scans folders dynamically (see `src/gameScanner.js` inside `game-launcher`).
-
-## 6. Ignoring Broken / Unsupported Games
-
-To hide specific folders from the UI, create or edit `game-launcher/config/ignore-games.json`:
-
-```jsonc
-[
-  // Exact folder names only:
-  "example-broken-game",
-  "legacy-test"
-]
-```
-
-Rules:
-
-- Must match folder names under `games/` or `emulators/` exactly.
-- File optional; if missing or malformed, nothing is excluded.
-- Keep list small—logically prune rather than bulk ignore.
-
-## 7. Folder Structure (High-Level)
+# Folder Structure (High-Level)
 
 ```
 gfiles-advanced/
@@ -112,13 +46,13 @@ gfiles-advanced/
 │  └─ dist/          # Output builds (after packaging)
 ```
 
-## 8. Contributing
+## Contributing
 
 Contributions are welcome:
 
 1. Fork the repo
 2. Create a feature branch (`feat/<short-name>`)
-3. Run lint & build locally
+3. Run build locally
 4. Open a Pull Request with a concise description
 
 ### Ideas for Contribution
@@ -128,19 +62,3 @@ Contributions are welcome:
 - Achievements or playtime tracking
 - Theme customization / dark mode refinements
 - Search improvements (fuzzy, by genre)
-
-## 9. License
-
-This project is licensed under the MIT License. See the `license` field in `game-launcher/package.json`. (If desired, add a top-level `LICENSE` file for clarity.)
-
-## FAQ
-
-**Q: Are all games guaranteed to work offline?**  
-Not always—some games might reference external CDNs. Those can be patched or mirrored.
-
-**Q: Why an HTTP server?**  
-Many older games rely on relative asset fetches or XHR; serving via Express avoids CORS/file:// pitfalls.
-
----
-
-Enjoy exploring and extending the launcher. PRs & feedback welcome!

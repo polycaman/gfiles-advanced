@@ -32,6 +32,29 @@ async function run() {
     report: false,
   });
   console.log("[icons] ICO & ICNS oluşturuldu");
+
+  // Standardize names expected by electron-builder config (app.ico / app.icns)
+  const icoSource = path.join(outDir, "icon.ico");
+  const icnsSource = path.join(outDir, "icon.icns");
+  const icoTarget = path.join(outDir, "app.ico");
+  const icnsTarget = path.join(outDir, "app.icns");
+  try {
+    if (fs.existsSync(icoSource)) {
+      fs.copyFileSync(icoSource, icoTarget);
+      console.log("[icons] app.ico hazır");
+    } else {
+      console.warn("[icons] icon.ico bulunamadı, app.ico oluşturulamadı");
+    }
+    if (fs.existsSync(icnsSource)) {
+      fs.copyFileSync(icnsSource, icnsTarget);
+      console.log("[icons] app.icns hazır");
+    } else {
+      console.warn("[icons] icon.icns bulunamadı, app.icns oluşturulamadı");
+    }
+  } catch (e) {
+    console.warn("[icons] Yeniden adlandırma sırasında hata:", e);
+  }
+
   console.log("[icons] Tamamlandı:", outDir);
 }
 

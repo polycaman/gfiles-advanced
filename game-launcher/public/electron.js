@@ -13,6 +13,102 @@ let mainWindow;
 let gameWindows = new Map();
 let serverPort;
 let appIconGlobal = null;
+if (process.platform === 'win32' && !process.env.WEBGL_FORCE && !process.env.WEBGL_LEGACY && process.env.WEBGL_NO_LEGACY !== '1') {
+  process.env.WEBGL_LEGACY = '1';
+  console.log('[BOOT] win32 platform detected; defaulting WEBGL_LEGACY=1 (set WEBGL_NO_LEGACY=1 to disable)');
+}
+
+if (process.env.WEBGL_FORCE === "1") {
+  try {
+    console.log("[WEBGL_FORCE] Applying GPU/WebGL command line switches");
+    app.commandLine.appendSwitch("ignore-gpu-blacklist");
+    app.commandLine.appendSwitch("enable-webgl");
+    app.commandLine.appendSwitch("use-angle", "d3d11");
+    app.commandLine.appendSwitch("disable-gpu-sandbox");
+    app.commandLine.appendSwitch("enable-gpu-rasterization");
+    app.commandLine.appendSwitch("enable-zero-copy");
+    app.commandLine.appendSwitch("enable-webgl-developer-extensions");
+  } catch (e) {
+    console.warn("[WEBGL_FORCE] Failed to set GPU flags:", e.message);
+  }
+}
+
+if (process.env.WEBGL_LEGACY === "1") {
+  try {
+    console.log("[WEBGL_LEGACY] Applying legacy GPU fallback switches");
+    app.commandLine.appendSwitch("disable-vulkan");
+    app.commandLine.appendSwitch("ignore-gpu-blacklist");
+    app.commandLine.appendSwitch("enable-webgl");
+    app.commandLine.appendSwitch("use-angle", "d3d11");
+    app.commandLine.appendSwitch("disable-gpu-rasterization");
+    app.commandLine.appendSwitch("disable-zero-copy");
+    app.commandLine.appendSwitch("disable-direct-composition");
+    app.commandLine.appendSwitch("enable-webgl-software-renderer");
+  } catch (e) {
+    console.warn("[WEBGL_LEGACY] Failed to set legacy GPU flags:", e.message);
+  }
+}
+
+let gpuCrashCount = 0;
+app.on("child-process-gone", (event, details) => {
+  if (details.type === "GPU") {
+    gpuCrashCount++;
+    console.error(`[GPU_CRASH] gpuCrashCount=${gpuCrashCount} reason=${details.reason} exitCode=${details.exitCode}`);
+    if (gpuCrashCount === 2) {
+      console.warn("[GPU_CRASH] Multiple GPU crashes. Try: npm run start:webgl OR npm run start:webgl:legacy OR update drivers.");
+    }
+    if (gpuCrashCount === 3 && mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.executeJavaScript(
+        "(function(){if(!document.getElementById('gpu-warn')){var d=document.createElement('div');d.id='gpu-warn';d.style.cssText='position:fixed;top:0;left:0;right:0;background:#b30000;color:#fff;font:14px sans-serif;padding:8px;z-index:9999';d.textContent='GPU süreci tekrar tekrar çöküyor. WebGL devre dışı. Sürücüleri güncelleyin veya legacy modu deneyin (start:webgl:legacy).';document.body.appendChild(d);} })();"
+      ).catch(()=>{});
+    }
+  }
+});
+
+function injectWebGLDiagnostics(targetWindow, label = "MAIN") {
+  if (!targetWindow || targetWindow.isDestroyed()) return;
+  targetWindow.webContents
+    .executeJavaScript(
+      `(() => {
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        const support = !!gl;
+        let info = {};
+        if (gl) {
+          const dbgInfo = gl.getExtension('WEBGL_debug_renderer_info');
+          if (dbgInfo) {
+            info.vendor = gl.getParameter(dbgInfo.UNMASKED_VENDOR_WEBGL);
+            info.renderer = gl.getParameter(dbgInfo.UNMASKED_RENDERER_WEBGL);
+          } else {
+            info.vendor = 'N/A';
+            info.renderer = 'N/A';
+          }
+          info.version = gl.getParameter(gl.VERSION);
+          info.shadingLanguage = gl.getParameter(gl.SHADING_LANGUAGE_VERSION);
+        }
+        return { support, info };
+      })();`
+    )
+    .then((res) => {
+      console.log(`[WEBGL_DIAG:${label}] support=${res.support}`, res.info);
+    })
+    .catch((e) => console.warn(`[WEBGL_DIAG:${label}] JS exec failed`, e));
+}
+
+async function logGPUInfoOnce() {
+  try {
+    const gpuInfo = await app.getGPUInfo("complete");
+    console.log("[GPU_INFO]", {
+      amdSwitchable: gpuInfo.amdSwitchable,
+      gpuDevice: gpuInfo.gpuDevice,
+      driverBugWorkarounds: gpuInfo.driverBugWorkarounds,
+      videoDecodeAcceleratorCapabilities: gpuInfo.videoDecodeAcceleratorCapabilities,
+      auxAttributes: gpuInfo.auxAttributes,
+    });
+  } catch (e) {
+    console.warn("[GPU_INFO] retrieval failed:", e.message);
+  }
+}
 
 async function createWindow() {
   const forceProd = process.env.ELECTRON_IS_DEV === "0";
@@ -125,6 +221,8 @@ async function createWindow() {
             "[DIAG] #root has no children after load; React may not have mounted yet."
           );
         }
+        // After initial content load, run WebGL diagnostics.
+        injectWebGLDiagnostics(mainWindow, "MAIN");
       })
       .catch(() => {});
   });
@@ -157,6 +255,8 @@ async function createWindow() {
                 "data:text/html,<h1>React dev server blank</h1><p>Port 3000 may not have started yet. Try re-running: npm run start:dev</p>"
               );
             }
+            // Re-run diagnostics after fallback check (in case of delayed mount).
+            injectWebGLDiagnostics(mainWindow, "MAIN-LATE");
           })
           .catch(() => {});
       }
@@ -206,6 +306,7 @@ async function createGameWindow(gameUrl, gameId, gameType) {
 
   gameWindow.once("ready-to-show", () => {
     gameWindow.show();
+    injectWebGLDiagnostics(gameWindow, `GAME:${gameId}`);
   });
 
   gameWindow.on("closed", () => {
@@ -228,6 +329,8 @@ app.whenReady().then(async () => {
     serverPort = await startServer();
     console.log(`Game server started on port ${serverPort}`);
     await createWindow();
+    // Log GPU info after initial window creation.
+    logGPUInfoOnce();
   } catch (error) {
     console.error("Failed to start server:", error);
     app.quit();

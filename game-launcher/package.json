@@ -4,8 +4,9 @@
   "description": "Electron game launcher for gfiles",
   "main": "public/electron.js",
   "scripts": {
-    "start": "ELECTRON_IS_DEV=0 electron .",
-    "start:clean": "CLEAR_CACHE=1 ELECTRON_IS_DEV=0 electron .",
+  "start": "cross-env WEBGL_LEGACY=1 ELECTRON_IS_DEV=0 electron .",
+  "start:clean": "cross-env WEBGL_LEGACY=1 CLEAR_CACHE=1 ELECTRON_IS_DEV=0 electron .",
+  "start:webgl:legacy": "cross-env WEBGL_LEGACY=1 ELECTRON_IS_DEV=0 electron .",
     "start:dev": "npm run dev",
     "dev": "concurrently \"npm run react-dev\" \"wait-on http://localhost:3000 && electron .\"",
     "react-dev": "react-scripts start",
@@ -18,8 +19,8 @@
   "dist:mac": "npm run build && npm run generate:icons && npm run prepare:assets && electron-builder --mac",
     "pack:linux": "npm run build && npm run prepare:assets && electron-builder --linux --dir",
   "dist:linux": "npm run build && npm run generate:icons && npm run prepare:assets && electron-builder --linux",
-    "pack:win": "npm run build && npm run prepare:assets && electron-builder --win --dir",
-  "dist:win": "npm run build && npm run generate:icons && npm run prepare:assets && electron-builder --win",
+    "pack:win": "cross-env WEBGL_LEGACY=1 npm run build && npm run prepare:assets && electron-builder --win --dir",
+    "dist:win": "cross-env WEBGL_LEGACY=1 npm run build && npm run generate:icons && npm run prepare:assets && electron-builder --win",
     "cleanup:icons": "rm -rf public/icons build/icons",
     "postinstall": "electron-builder install-app-deps"
   },
@@ -46,7 +47,8 @@
     "electron": "^27.0.0",
     "wait-on": "^7.2.0",
     "sharp": "^0.33.2",
-    "icon-gen": "^4.0.0"
+    "icon-gen": "^4.0.0",
+    "cross-env": "^7.0.3"
   },
   "build": {
     "appId": "com.gfiles.launcher",

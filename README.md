@@ -2,7 +2,7 @@
 
 # GFiles Advanced Game Launcher
 
-> An electron launcher that lets you place gfiles HTML5 game collection offline. Technically, it gives you the option to search through games, play them full screen while they are atuomatically served by a HTTP server in the background.
+> An electron launcher that lets you play gfiles HTML5 game collection offline. Technically, it gives you the option to search through games, play them full screen while they are atuomatically served by a HTTP server in the background.
 
 # How to install?
 
@@ -31,20 +31,16 @@ Currently 37 games are ignored and not included in the releases. This is due to 
 If new games are added and some of them are fixed, we can add or remove games from this list. 
 Original repository owncer can also have a look at this list to understand which games are not working.
 
-# Folder Structure (High-Level)
 
-```
-gfiles-advanced/
-├─ games/            # Individual game directories
-├─ emulators/        # Emulator integrations (e.g., Ruffle)
-├─ game-launcher/    # Electron + React launcher app
-│  ├─ src/           # Front-end & backend helper scripts
-│  ├─ public/        # Electron main process entry + static assets
-│  ├─ config/        # Config files (ignore list, etc.)
-│  ├─ packaged-assets/ # Assets prepared for distribution
-│  ├─ scripts/       # Build utility scripts (icons, assets)
-│  └─ dist/          # Output builds (after packaging)
-```
+
+## Ideas for Contribution
+
+- Persistent storage for game progresses (electron browser storage)
+- "Open folder" option to be standalone
+- Game descriptions (JSON descriptors)
+- Playtime tracking
+- Theme customization
+- Multi-language support
 
 ## Contributing
 
@@ -54,11 +50,3 @@ Contributions are welcome:
 2. Create a feature branch (`feat/<short-name>`)
 3. Run build locally
 4. Open a Pull Request with a concise description
-
-### Ideas for Contribution
-
-- Tagging & filtering UI for games
-- Game metadata ingestion (JSON descriptors)
-- Achievements or playtime tracking
-- Theme customization / dark mode refinements
-- Search improvements (fuzzy, by genre)
